@@ -1,0 +1,3 @@
+﻿  main.cpp
+C:\Users\lenik\source\repos\GoodDriver\GoodDriver\main.cpp(28,29): warning C4305: аргумент: усечение из "double" в "GLfloat"
+  GoodDriver.vcxproj -> C:\Users\lenik\source\repos\GoodDriver\x64\Debug\GoodDriver.exe
