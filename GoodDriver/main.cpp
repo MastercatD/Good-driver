@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <math.h>
+#include <cmath>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -19,22 +21,228 @@
 #include "../libs/emscripten/emscripten_mainloop_stub.h"
 #endif
 
+#define PI 3.1415926535
+
+struct Point2D {
+  double x, y;
+};
+
+bool Interseсt(Point2D point11, Point2D point12, Point2D point21,
+               Point2D point22) {
+  bool result = false;
+  double eps = 10e-10;
+  //  Точки и векторы, лежащие на прямых
+  double x01 = point11.x, x02 = point21.x;
+  double vector11 = point12.x - point11.x,
+         vector12 = point22.x - point21.x;
+  double y01 = point11.y, y02 = point21.y;
+  double vector21 = point12.y - y01,
+         vector22 = point22.y - y02;
+  double z01 = 1, z02 = 1;
+  double vector31 = 0,
+         vector32 = 0;
+  //  Находим пересечение путём выражения параметров s и t из уравнений прямых в
+  //  параметрическом виде
+  double del =
+      vector21 * vector12 / vector11 -
+      vector22;  // Делитель выражения, если равен нулю, то прямые параллельные
+  if (del >= eps && vector11 >= 0) {
+    double s = -(y01 - y02 - (x01 - x02) / vector11) /
+               (vector21 * vector12 / vector11 - vector22);
+    double t = (x01 - vector12 * s - x02) / -vector11;
+    double x = vector12 * s + x02;
+    double y = vector22 * s + y02;
+    double z = vector32 * s + z02;
+    if (abs(x - (vector11 * t + x01)) < eps &&
+        abs(y - (vector21 * t + y01)) < eps) //  Если система решена неправильно, то прямые скрещивающиеся
+        {  // Проверка, чтобы точка лежала на обоих отрезках
+      result = true;
+    }
+  }
+  return result;
+}
+
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action,
+                 int mods);
+
+void DrawRect(GLfloat x, GLfloat y, GLfloat width, GLfloat height,
+              GLfloat angle, GLfloat red, GLfloat green, GLfloat blue,
+              GLfloat xOffset = 0, GLfloat yOffset = 0);
+
+void DisplayRoad();
+
+void RoadRules();
+
+
+struct Position {
+  GLfloat x, y, angle;
+};
+// 
+class Vehicle {
+  Position pos;
+ public:
+  Position GetPosition() { return pos; }
+  void SetPosition(Position pos) {
+    this->pos.angle = pos.angle;
+    this->pos.x = pos.x;
+    this->pos.y = pos.y;
+  }
+  virtual void Display() = 0;
+  virtual void Move() = 0;
+};
+
+class Car:public Vehicle {
+  GLfloat speed = 0.0f, angularSpeed = 0.5, maxSpeed = 8.0f, acceleration = 0.1f;
+  GLbyte gasStatus = 0, rotateStatus = 0;
+ public:
+  Car(GLfloat x, GLfloat y, GLfloat angle) {
+    Position pos;
+    pos.x = x;
+    pos.y = y;
+    pos.angle = angle;
+    this->SetPosition(pos);
+  }
+   void SetGasStatus(GLbyte gasStatus) { this->gasStatus = gasStatus;
+  }
+  void SetRotateStatus(GLbyte rotateStatus) { this->rotateStatus = rotateStatus; }
+  void Display() override {
+    Position pos = GetPosition();
+    DrawRect(pos.x, 0, 50, 100, pos.angle, 0.5f, 0.0f, 0.0f);
+    DrawRect(pos.x, 0, 40, 60, pos.angle, 0.25f, 0.0f, 0.0f, 0, -20);
+    DrawRect(pos.x, 0, 15, 5, pos.angle, 1.0f, 1.0f, 0.0f, 25, 95);
+    DrawRect(pos.x, 0, 15, 5, pos.angle, 1.0f, 1.0f, 0.0f, -25, 95);
+    DrawRect(pos.x, 0, 10, 5, pos.angle, 1.0f, 0.0f, 0.0f, 30, -95);
+    DrawRect(pos.x, 0, 10, 5, pos.angle, 1.0f, 0.0f, 0.0f, -30, -95);
+  }
+  void Move() {
+    Position pos = GetPosition();
+    switch (gasStatus) {
+      //  Ускорение вперёд
+      case 1: { 
+        speed += acceleration;
+        if (speed >= maxSpeed) speed = maxSpeed;
+
+      } break;
+      //  Ускорение назад
+      case -1: {
+        speed -= acceleration;
+        if (speed <= -maxSpeed) speed = -maxSpeed;
+
+      } break;
+      //  Замедление
+      case 0: {
+        speed /= 1.1;
+      } break;
+    }
+    pos.angle += angularSpeed * rotateStatus * speed;
+    if (pos.angle > 360)
+      pos.angle -= 360;
+    else if (pos.angle < 0)
+      pos.angle += 360;
+    pos.x -= speed * sin(pos.angle * PI / 180);
+    pos.y += speed * cos(pos.angle * PI / 180);
+    if (pos.y > 450) pos.y -= 900;
+    if (pos.y < -450) pos.y += 900;
+    SetPosition(pos);
+  }
+
+};
+
+
 
 // Глобальные переменные
+Car car(-100,0,0);
+
 
 // Рисование
 void Paint() {
   glClear(GL_COLOR_BUFFER_BIT);
-  glColor3f(0.25, 0.87, 0.81);
-  glBegin(GL_TRIANGLES);
-  glVertex2f(0.0, 0.0);
-  glVertex2f(1.0, 1.0);
-  glVertex2f(1.0, 0.0);
-  glEnd();
+  DisplayRoad();
+  car.Display();
+ // Position pos = car.GetPosition();
+ // Point2D v1, v2, v3, v4;
+ // v1.x = pos.x;
+  //v1.y = pos.y;
+ // v2.x = pos.x + ;
+ // v2.y = pos.y;
 }
 
 
+void DrawRect(GLfloat x, GLfloat y, GLfloat width, GLfloat height,
+              GLfloat angle, GLfloat red, GLfloat green, GLfloat blue,
+              GLfloat xOffset, GLfloat yOffset) {
+  GLfloat step = 1.0f / 500.0f;
 
+  glColor3f(red, green, blue);
+  glPushMatrix();
+  glScalef(step, step, 1);
+  glTranslatef(x, y, 1.0f);
+  glRotatef(angle, 0.0, 0.0, 1.0);
+
+  glBegin(GL_QUADS);
+  glVertex2f(-width / 2 + xOffset / 2, -height / 2 + yOffset / 2);
+  glVertex2f(width / 2 + xOffset / 2, -height / 2 + yOffset / 2);
+  glVertex2f(width / 2 + xOffset / 2, height / 2 + yOffset / 2);
+  glVertex2f(-width / 2 + xOffset / 2, height / 2 + yOffset / 2);
+
+  glEnd();
+  glPopMatrix();
+}
+
+void DisplayRoad() {
+  Position pos = car.GetPosition();
+  DrawRect(-450, 0, 20, 1800, 0, 1, 1, 1);
+  DrawRect(0, 0, 20, 1800, 0, 1, 1, 1);
+  DrawRect(-225, 450 - pos.y, 20, 700, 0, 1, 1, 1);
+  DrawRect(-225, -450 -pos.y, 20, 700, 0, 1, 1, 1);
+  //printf("\n%f", pos.y);
+
+}
+
+
+void RoadRules() {
+  Position pos = car.GetPosition();
+  if (pos.y > -70 && pos.y < 70) {
+    //printf("\n%f",pos.x);
+
+  } else if (pos.x > -225 && pos.angle > 70 && pos.angle < 290) {
+    printf("Движение по встречке на правой стороне");
+  }
+
+
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action,
+                 int mods) {
+  switch (key) {
+    case GLFW_KEY_W: {
+      if (action == GLFW_PRESS)
+        car.SetGasStatus(1);
+      else if (action == GLFW_RELEASE)
+        car.SetGasStatus(0);
+    } break;
+    case GLFW_KEY_S: {
+      if (action == GLFW_PRESS)
+        car.SetGasStatus(-1);
+      else if (action == GLFW_RELEASE)
+        car.SetGasStatus(0);
+    } break;
+      
+    case GLFW_KEY_D: {
+      if (action == GLFW_PRESS)
+        car.SetRotateStatus(-1);
+      else if (action == GLFW_RELEASE)
+        car.SetRotateStatus(0);
+    } break;
+    case GLFW_KEY_A: {
+      if (action == GLFW_PRESS)
+        car.SetRotateStatus(1);
+      else if (action == GLFW_RELEASE)
+        car.SetRotateStatus(0);
+    } break;
+  }
+}
 
 
 static void glfw_error_callback(int error, const char* description) {
@@ -72,8 +280,11 @@ int main(int, char**) {
 
   // Create window with graphics context
   GLFWwindow* window = glfwCreateWindow(
-      1280, 720, "Good driver", nullptr, nullptr);
+      900, 900, "Good driver", nullptr, nullptr);
   if (window == nullptr) return 1;
+
+  glfwSetKeyCallback(window, keyCallback);
+
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);  // Enable vsync
 
@@ -124,6 +335,7 @@ int main(int, char**) {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+
 
     if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
 
@@ -181,8 +393,11 @@ int main(int, char**) {
                  clear_color.z * clear_color.w, clear_color.w);
 
 
-
+    car.Move();
+    RoadRules();
     Paint();
+    
+
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     glfwSwapBuffers(window);

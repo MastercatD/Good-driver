@@ -1,3 +1,5 @@
 ﻿  main.cpp
-C:\Users\lenik\source\repos\GoodDriver\GoodDriver\main.cpp(28,29): warning C4305: аргумент: усечение из "double" в "GLfloat"
+C:\Users\lenik\source\repos\GoodDriver\GoodDriver\main.cpp(135,1): warning C4305: /=: усечение из "double" в "GLfloat"
+C:\Users\lenik\source\repos\GoodDriver\GoodDriver\main.cpp(143,1): warning C4244: -=: преобразование "double" в "GLfloat", возможна потеря данных
+C:\Users\lenik\source\repos\GoodDriver\GoodDriver\main.cpp(144,1): warning C4244: +=: преобразование "double" в "GLfloat", возможна потеря данных
   GoodDriver.vcxproj -> C:\Users\lenik\source\repos\GoodDriver\x64\Debug\GoodDriver.exe
