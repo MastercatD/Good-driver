@@ -45,6 +45,9 @@
     <ClCompile Include="..\Linking\imgui\imgui_impl_opengl3.cpp">
       <Filter>Исходные файлы\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="Vehicle.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Linking\imgui\imstb_truetype.h">
@@ -73,6 +76,12 @@
     </ClInclude>
     <ClInclude Include="..\Linking\imgui\imstb_textedit.h">
       <Filter>Файлы заголовков\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Vehicle.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="GoodDriver.h">
+      <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

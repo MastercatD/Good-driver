@@ -1,174 +1,30 @@
-#include <stdio.h>
-#include <math.h>
-#include <cmath>
+#include "GoodDriver.h"
 
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-#define GL_SILENCE_DEPRECATION
-#if defined(IMGUI_IMPL_OPENGL_ES2)
-#include <GLES2/gl2.h>
-#endif
-#include <GLFW/glfw3.h>  
-
-#if defined(_MSC_VER) && (_MSC_VER >= 1900) && \
-    !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
-#pragma comment(lib, "legacy_stdio_definitions")
-#endif
-
-
-#ifdef __EMSCRIPTEN__
-#include "../libs/emscripten/emscripten_mainloop_stub.h"
-#endif
-
-#define PI 3.1415926535
-
-struct Point2D {
-  double x, y;
-};
-
-bool Interseсt(Point2D point11, Point2D point12, Point2D point21,
-               Point2D point22) {
-  bool result = false;
-  double eps = 10e-10;
-  //  Точки и векторы, лежащие на прямых
-  double x01 = point11.x, x02 = point21.x;
-  double vector11 = point12.x - point11.x,
-         vector12 = point22.x - point21.x;
-  double y01 = point11.y, y02 = point21.y;
-  double vector21 = point12.y - y01,
-         vector22 = point22.y - y02;
-  double z01 = 1, z02 = 1;
-  double vector31 = 0,
-         vector32 = 0;
-  //  Находим пересечение путём выражения параметров s и t из уравнений прямых в
-  //  параметрическом виде
-  double del =
-      vector21 * vector12 / vector11 -
-      vector22;  // Делитель выражения, если равен нулю, то прямые параллельные
-  if (del >= eps && vector11 >= 0) {
-    double s = -(y01 - y02 - (x01 - x02) / vector11) /
-               (vector21 * vector12 / vector11 - vector22);
-    double t = (x01 - vector12 * s - x02) / -vector11;
-    double x = vector12 * s + x02;
-    double y = vector22 * s + y02;
-    double z = vector32 * s + z02;
-    if (abs(x - (vector11 * t + x01)) < eps &&
-        abs(y - (vector21 * t + y01)) < eps) //  Если система решена неправильно, то прямые скрещивающиеся
-        {  // Проверка, чтобы точка лежала на обоих отрезках
-      result = true;
-    }
-  }
-  return result;
-}
-
-
+// Перехват клавиш
 void keyCallback(GLFWwindow* window, int key, int scancode, int action,
                  int mods);
-
-void DrawRect(GLfloat x, GLfloat y, GLfloat width, GLfloat height,
-              GLfloat angle, GLfloat red, GLfloat green, GLfloat blue,
-              GLfloat xOffset = 0, GLfloat yOffset = 0);
-
-void DisplayRoad();
-
-void RoadRules();
-
-
-struct Position {
-  GLfloat x, y, angle;
-};
-// 
-class Vehicle {
-  Position pos;
- public:
-  Position GetPosition() { return pos; }
-  void SetPosition(Position pos) {
-    this->pos.angle = pos.angle;
-    this->pos.x = pos.x;
-    this->pos.y = pos.y;
-  }
-  virtual void Display() = 0;
-  virtual void Move() = 0;
-};
-
-class Car:public Vehicle {
-  GLfloat speed = 0.0f, angularSpeed = 0.5, maxSpeed = 8.0f, acceleration = 0.1f;
-  GLbyte gasStatus = 0, rotateStatus = 0;
- public:
-  Car(GLfloat x, GLfloat y, GLfloat angle) {
-    Position pos;
-    pos.x = x;
-    pos.y = y;
-    pos.angle = angle;
-    this->SetPosition(pos);
-  }
-   void SetGasStatus(GLbyte gasStatus) { this->gasStatus = gasStatus;
-  }
-  void SetRotateStatus(GLbyte rotateStatus) { this->rotateStatus = rotateStatus; }
-  void Display() override {
-    Position pos = GetPosition();
-    DrawRect(pos.x, 0, 50, 100, pos.angle, 0.5f, 0.0f, 0.0f);
-    DrawRect(pos.x, 0, 40, 60, pos.angle, 0.25f, 0.0f, 0.0f, 0, -20);
-    DrawRect(pos.x, 0, 15, 5, pos.angle, 1.0f, 1.0f, 0.0f, 25, 95);
-    DrawRect(pos.x, 0, 15, 5, pos.angle, 1.0f, 1.0f, 0.0f, -25, 95);
-    DrawRect(pos.x, 0, 10, 5, pos.angle, 1.0f, 0.0f, 0.0f, 30, -95);
-    DrawRect(pos.x, 0, 10, 5, pos.angle, 1.0f, 0.0f, 0.0f, -30, -95);
-  }
-  void Move() {
-    Position pos = GetPosition();
-    switch (gasStatus) {
-      //  Ускорение вперёд
-      case 1: { 
-        speed += acceleration;
-        if (speed >= maxSpeed) speed = maxSpeed;
-
-      } break;
-      //  Ускорение назад
-      case -1: {
-        speed -= acceleration;
-        if (speed <= -maxSpeed) speed = -maxSpeed;
-
-      } break;
-      //  Замедление
-      case 0: {
-        speed /= 1.1;
-      } break;
-    }
-    pos.angle += angularSpeed * rotateStatus * speed;
-    if (pos.angle > 360)
-      pos.angle -= 360;
-    else if (pos.angle < 0)
-      pos.angle += 360;
-    pos.x -= speed * sin(pos.angle * PI / 180);
-    pos.y += speed * cos(pos.angle * PI / 180);
-    if (pos.y > 450) pos.y -= 900;
-    if (pos.y < -450) pos.y += 900;
-    SetPosition(pos);
-  }
-
-};
-
-
+//  Рисование дороги
+void DisplayRoad(Vehicle *vehicle);
+//  Дорожные правила
+void RoadRules(Vehicle *vehicle,bool* violation1, bool* violation2, bool* turn,
+               bool* turnSuccess, bool* turnFail);
+//  Рисование
+void Paint(Vehicle* vehicle);
 
 // Глобальные переменные
-Car car(-100,0,0);
+Car car(-100, 0, 0);
+GLfloat rideAngle = 70, turnAngle = 45;
+
 
 
 // Рисование
-void Paint() {
+void Paint(Vehicle *vehicle) {
   glClear(GL_COLOR_BUFFER_BIT);
-  DisplayRoad();
-  car.Display();
- // Position pos = car.GetPosition();
- // Point2D v1, v2, v3, v4;
- // v1.x = pos.x;
-  //v1.y = pos.y;
- // v2.x = pos.x + ;
- // v2.y = pos.y;
+  DisplayRoad(vehicle);
+  vehicle->Display();
 }
 
-
+//  Рисование прямоугольника
 void DrawRect(GLfloat x, GLfloat y, GLfloat width, GLfloat height,
               GLfloat angle, GLfloat red, GLfloat green, GLfloat blue,
               GLfloat xOffset, GLfloat yOffset) {
@@ -190,32 +46,53 @@ void DrawRect(GLfloat x, GLfloat y, GLfloat width, GLfloat height,
   glPopMatrix();
 }
 
-void DisplayRoad() {
-  Position pos = car.GetPosition();
+void DisplayRoad(Vehicle *vehicle) {
+  Position pos = vehicle->GetPosition();
   DrawRect(-450, 0, 20, 1800, 0, 1, 1, 1);
   DrawRect(0, 0, 20, 1800, 0, 1, 1, 1);
   DrawRect(-225, 450 - pos.y, 20, 700, 0, 1, 1, 1);
   DrawRect(-225, -450 -pos.y, 20, 700, 0, 1, 1, 1);
-  //printf("\n%f", pos.y);
 
 }
 
 
-void RoadRules() {
+void RoadRules(Vehicle *vehicle, bool* violation1, bool* violation2, bool* turn,
+               bool* turnSuccess, bool* turnFail) {
   Position pos = car.GetPosition();
-  if (pos.y > -70 && pos.y < 70) {
-    //printf("\n%f",pos.x);
+  if (pos.x < -450 || pos.x > 0)
+    //  Выезд за дорогу
+    *violation2 = true;
+  else if (pos.y > -70 && pos.y < 70) {
+    //  Разрыв
+    if ((pos.x > -260 && pos.angle > turnAngle && pos.angle < 180) ||
+        (pos.x < -190 && pos.angle > 180 + turnAngle))
+      *turn = true;
 
-  } else if (pos.x > -225 && pos.angle > 70 && pos.angle < 290) {
-    printf("Движение по встречке на правой стороне");
+  } else if ((pos.x > -260 && pos.angle > rideAngle &&
+              pos.angle < 360 - rideAngle) ||
+             (pos.x < -190 &&
+              !(pos.angle > 180 - rideAngle && pos.angle < 180 + rideAngle))) {
+    //  Встречное движение
+    *violation1 = true;
+    if (*turn) {
+      //  Неудачный разворот
+      *turn = false;
+      *turnFail = true;
+      glfwSetTime(0);
+    }
+  } else if (*turn) {
+    //  Успешный разворот
+    *turn = false;
+    *turnSuccess = true;
+    glfwSetTime(0);
   }
-
-
 }
 
+//  Перехват клавиатуры
 void keyCallback(GLFWwindow* window, int key, int scancode, int action,
                  int mods) {
   switch (key) {
+    // Движение
     case GLFW_KEY_W: {
       if (action == GLFW_PRESS)
         car.SetGasStatus(1);
@@ -228,7 +105,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action,
       else if (action == GLFW_RELEASE)
         car.SetGasStatus(0);
     } break;
-      
+    // Поворот
     case GLFW_KEY_D: {
       if (action == GLFW_PRESS)
         car.SetRotateStatus(-1);
@@ -249,8 +126,14 @@ static void glfw_error_callback(int error, const char* description) {
   fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-// Main code
+// Основная программа
 int main(int, char**) {
+
+  //  Состояния событий
+  bool violation1 = false, violation2 = false, turn = false;
+  bool turnSuccess = false, turnFail = false;
+
+
   glfwSetErrorCallback(glfw_error_callback);
   if (!glfwInit()) return 1;
 
@@ -273,9 +156,6 @@ int main(int, char**) {
   const char* glsl_version = "#version 130";
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-  // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+
-  // only glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+
-  // only
 #endif
 
   // Create window with graphics context
@@ -292,7 +172,10 @@ int main(int, char**) {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
+  io.Fonts->AddFontFromFileTTF("Dudka Bold Italic.ttf", 16, NULL, io.Fonts->GetGlyphRangesCyrillic());
   (void)io;
+ 
+
   io.ConfigFlags |=
       ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
   io.ConfigFlags |=
@@ -311,80 +194,64 @@ int main(int, char**) {
 
   
   // Our state
-  bool show_demo_window = true;
   bool show_another_window = false;
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
   // Main loop
 #ifdef __EMSCRIPTEN__
-  // For an Emscripten build we are disabling file-system access, so let's not
-  // attempt to do a fopen() of the imgui.ini file. You may manually call
-  // LoadIniSettingsFromMemory() to load settings from your own storage.
   io.IniFilename = nullptr;
   EMSCRIPTEN_MAINLOOP_BEGIN
 #else
+
+
+  //  Цикл программы
   while (!glfwWindowShouldClose(window))
 #endif
   {
 
-
-
     glfwPollEvents();
 
-    // Start the Dear ImGui frame
+    violation2 = false;
+    violation1 = false;
+    //  Движение
+    car.Move();
+    //  Логика правил
+    RoadRules(&car, &violation1, &violation2, &turn, &turnSuccess, &turnFail);
+    //  Рисование
+    Paint(&car);
+
+    // Интерфейс
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-
-    if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
-
-    {
-      static float f = 0.0f;
-      static int counter = 0;
-
-      ImGui::Begin("Hello, world!");  // Create a window called "Hello, world!"
-                                      // and append into it.
-
-      ImGui::Text("This is some useful text.");  // Display some text (you can
-                                                 // use a format strings too)
-      ImGui::Checkbox(
-          "Demo Window",
-          &show_demo_window);  // Edit bools storing our window open/close state
-      ImGui::Checkbox("Another Window", &show_another_window);
-
-      ImGui::SliderFloat(
-          "float", &f, 0.0f,
-          1.0f);  // Edit 1 float using a slider from 0.0f to 1.0f
-      ImGui::ColorEdit3(
-          "clear color",
-          (float*)&clear_color);  // Edit 3 floats representing a color
-
-      if (ImGui::Button(
-              "Button"))  // Buttons return true when clicked (most widgets
-                          // return true when edited/activated)
-        counter++;
-      ImGui::SameLine();
-      ImGui::Text("counter = %d", counter);
-
-      ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-                  1000.0f / io.Framerate, io.Framerate);
+    //  Окно уведомлений
+    if (violation1 || violation2 || turn || turnSuccess || turnFail) {
+      ImGui::Begin(u8"Уведомление");
+      if (violation1) ImGui::Text(u8"Выезд на встречную полосу");
+      if (violation2) ImGui::Text(u8"Выезд за дорогу");
+      if (turn) ImGui::Text(u8"Совершается разворот");
+      if (turnSuccess) {
+        ImGui::Text(u8"Разворот совершён успешно");
+        if (glfwGetTime() > 2) turnSuccess = false;
+      }
+      if (turnFail) {
+        ImGui::Text(u8"Разворот совершён неправильно");
+        if (glfwGetTime() > 2) turnFail = false;
+      }
       ImGui::End();
     }
-
-    // 3. Show another simple window.
-    if (show_another_window) {
-      ImGui::Begin(
-          "Another Window",
-          &show_another_window);  // Pass a pointer to our bool variable (the
-                                  // window will have a closing button that will
-                                  // clear the bool when clicked)
-      ImGui::Text("Hello from another window!");
-      if (ImGui::Button("Close Me")) show_another_window = false;
-      ImGui::End();
-    }
-
-    // Rendering
+    
+    //  Окно настроек
+    ImGui::Begin(u8"Настройки");
+    car.Settings();
+    ImGui::Text(u8"Угол начала разворота");
+    ImGui::SliderFloat(u8"4", &turnAngle, 0.0f, 180.0f);
+    ImGui::Text(u8"Допустимый угол езды");
+    ImGui::SliderFloat(u8"5", &rideAngle, 0.0f, 180.0f);
+    ImGui::End();
+    
+    // Отображение
     ImGui::Render();
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -392,11 +259,6 @@ int main(int, char**) {
     glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w,
                  clear_color.z * clear_color.w, clear_color.w);
 
-
-    car.Move();
-    RoadRules();
-    Paint();
-    
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -407,7 +269,7 @@ int main(int, char**) {
   EMSCRIPTEN_MAINLOOP_END;
 #endif
 
-  // Cleanup
+  // Очистка
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   ImGui::DestroyContext();

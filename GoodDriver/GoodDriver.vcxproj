@@ -156,6 +156,7 @@
     <ClCompile Include="..\Linking\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\Linking\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Vehicle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Linking\imgui\imconfig.h" />
@@ -167,6 +168,8 @@
     <ClInclude Include="..\Linking\imgui\imstb_rectpack.h" />
     <ClInclude Include="..\Linking\imgui\imstb_textedit.h" />
     <ClInclude Include="..\Linking\imgui\imstb_truetype.h" />
+    <ClInclude Include="GoodDriver.h" />
+    <ClInclude Include="Vehicle.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
